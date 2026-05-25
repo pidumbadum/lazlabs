@@ -73,5 +73,50 @@ def dashboard():
         return render_template("dashboard_teacher.html", user=session)
     return render_template("dashboard_student.html", user=session)
 
+
+@app.route("/api/schedule")
+@login_required()
+def get_schedule():
+    role = session["role"]
+    today = datetime.date.today()
+    start = today - datetime.timedelta(days=today.weekday())
+    end = start + datetime.timedelta(days=6)
+    db = get_db()
+
+    if role == "director":
+        rows = db.execute("""SELECT s.*, sg.group_name, t.name || ' ' || t.surname as teacher_name, l.name as lesson_name
+            FROM schedule s 
+            JOIN study_groups sg ON s.id_group=sg.id_group 
+            JOIN teachers t ON s.id_teacher=t.id_teacher 
+            JOIN lessons l ON sg.id_lesson=l.id_lesson
+            WHERE s.date BETWEEN ? AND ? ORDER BY s.date, s.time""", (str(start), str(end))).fetchall()
+    elif role == "teacher":
+        rows = db.execute("""SELECT s.*, sg.group_name, l.name as lesson_name 
+            FROM schedule s 
+            JOIN study_groups sg ON s.id_group=sg.id_group 
+            JOIN lessons l ON sg.id_lesson=l.id_lesson
+            WHERE s.date BETWEEN ? AND ? AND s.id_teacher=? ORDER BY s.date, s.time""",
+                          (str(start), str(end), session["linked_id"])).fetchall()
+    else:
+        student_id = session["linked_id"]
+        group = db.execute("SELECT id_group FROM students WHERE id_student=?", (student_id,)).fetchone()
+        rows = db.execute("""SELECT s.*, l.name as lesson_name 
+            FROM schedule s 
+            JOIN lessons l ON sg.id_lesson=l.id_lesson 
+            JOIN study_groups sg ON s.id_group=sg.id_group
+            WHERE s.date BETWEEN ? AND ? AND s.id_group=?""", (str(start), str(end), group["id_group"])).fetchall()
+
+    return jsonify([dict(row) for row in rows])
+
+
+@app.route("/api/schedule/<int:sched_id>/complete", methods=["POST"])
+@login_required("teacher")
+def complete_lesson(sched_id):
+    db = get_db()
+    db.execute("UPDATE schedule SET is_completed=1 WHERE id_schedule=? AND id_teacher=?",
+               (sched_id, session["linked_id"]))
+    db.commit()
+    return jsonify({"status": "ok"})
+
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
