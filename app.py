@@ -26,6 +26,39 @@ def close_db(exception):
     if db is not None:
         db.close()
 
+def login_required(role=None):
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if "user_id" not in session:
+                return redirect(url_for("login"))
+            if role and session.get("role") != role:
+                flash("Доступ запрещен")
+                return redirect(url_for("dashboard"))
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        login = request.form["login"]
+        password = request.form["password"]
+        db = get_db()
+        user = db.execute("SELECT * FROM users WHERE login = ?", (login,)).fetchone()
+        if user and check_password_hash(user["password_hash"], password):
+            session["user_id"] = user["id"]
+            session["role"] = user["role"]
+            session["linked_id"] = user["linked_entity_id"]
+            return redirect(url_for("dashboard"))
+        flash("Неверный логин или пароль")
+    return render_template("login.html")
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
+
 @app.route("/")
 def index():
     return redirect(url_for("login"))
