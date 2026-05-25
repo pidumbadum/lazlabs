@@ -73,9 +73,49 @@ def test_01_db_init():
 
     db.close()  # ← Важно закрыть перед teardown!
 
-    print("Commit 1: DB Init Success")
+    print(" DB Init Success")
     _teardown(db_path)
 
+def test_02_auth_flow():
+    db_path = _setup()
+    client = app.test_client()
+
+    # 1. Создаем тестового пользователя в БД
+    db = database.get_db()
+    db.execute("INSERT INTO users VALUES (1, 'user', ?, 'student', 0)",
+               (generate_password_hash("123"),))
+    db.commit()
+    db.close()
+
+    # 2. Проверяем вход (через сессию)
+    # До входа сессия пуста
+    with client.session_transaction() as sess:
+        assert "user_id" not in sess, "Сессия должна быть пуста до входа"
+
+    # Выполняем вход (POST-запрос)
+    resp = client.post("/login", data={"login": "user", "password": "123"}, follow_redirects=False)
+
+    # После входа должен быть редирект на dashboard (302)
+    assert resp.status_code == 302, "После успешного входа должен быть редирект"
+
+    # Проверяем сессию
+    with client.session_transaction() as sess:
+        assert "user_id" in sess, "После входа в сессии должен быть user_id"
+        assert sess["user_id"] == 1
+        assert sess["role"] == "student"
+
+    # 3. Проверяем неверный пароль
+    resp_fail = client.post("/login", data={"login": "user", "password": "wrong"}, follow_redirects=False)
+    # При ошибке остаемся на /login (200 или редирект обратно)
+    assert resp_fail.status_code in [200, 302]
+
+    # 4. Проверяем выход (logout)
+    client.get("/logout", follow_redirects=False)
+    with client.session_transaction() as sess:
+        assert "user_id" not in sess, "После выхода сессия должна очиститься"
+
+    print("Auth Flow Success")
+    _teardown(db_path)
 
 if __name__ == "__main__":
     test_01_db_init()
