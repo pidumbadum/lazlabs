@@ -63,5 +63,15 @@ def logout():
 def index():
     return redirect(url_for("login"))
 
+@app.route("/dashboard")
+@login_required()
+def dashboard():
+    role = session.get("role")
+    if role == "director":
+        return render_template("dashboard_director.html", user=session)
+    if role == "teacher":
+        return render_template("dashboard_teacher.html", user=session)
+    return render_template("dashboard_student.html", user=session)
+
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
