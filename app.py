@@ -248,5 +248,89 @@ def delete_user(user_id):
     except sqlite3.IntegrityError:
         return jsonify({"status": "error", "message": "Нельзя удалить: есть зависимые записи"}), 400
 
+@app.route("/api/director/groups", methods=["GET", "POST"])
+@login_required("director")
+def manage_groups():
+    db = get_db()
+    if request.method == "POST":
+        data = request.json
+        db.execute("INSERT INTO study_groups (group_name, id_teacher, id_lesson) VALUES (?, ?, ?)",
+                   (data["group_name"], data["id_teacher"], data["id_lesson"]))
+        db.commit()
+        return jsonify({"status": "ok"})
+
+    rows = db.execute("""SELECT g.id_group, g.group_name, t.name || ' ' || t.surname as teacher_name, l.name as lesson_name
+        FROM study_groups g
+        LEFT JOIN teachers t ON g.id_teacher = t.id_teacher
+        LEFT JOIN lessons l ON g.id_lesson = l.id_lesson""").fetchall()
+    return jsonify([dict(r) for r in rows])
+
+
+@app.route("/api/director/refs", methods=["GET"])
+@login_required("director")
+def get_refs():
+    db = get_db()
+    teachers = db.execute("SELECT id_teacher, name, surname FROM teachers").fetchall()
+    lessons = db.execute("SELECT id_lesson, name FROM lessons").fetchall()
+    return jsonify({"teachers": [dict(t) for t in teachers], "lessons": [dict(l) for l in lessons]})
+
+
+@app.route("/api/director/lessons", methods=["GET", "POST", "DELETE"])
+@login_required("director")
+def manage_lessons():
+    db = get_db()
+    if request.method == "POST":
+        data = request.json
+        db.execute("INSERT INTO lessons (name, price_hour) VALUES (?, ?)", (data["name"], data["price_hour"]))
+        db.commit()
+        return jsonify({"status": "ok"})
+    elif request.method == "DELETE":
+        lesson_id = request.args.get("id")
+        if not lesson_id:
+            return jsonify({"status": "error", "message": "Не указан ID"}), 400
+        try:
+            db.execute("DELETE FROM lessons WHERE id_lesson=?", (lesson_id,))
+            db.commit()
+            return jsonify({"status": "ok"})
+        except sqlite3.IntegrityError:
+            return jsonify({"status": "error", "message": "Нельзя удалить: предмет используется"}), 400
+
+    rows = db.execute("SELECT * FROM lessons").fetchall()
+    return jsonify([dict(r) for r in rows])
+
+
+@app.route("/api/director/schedule", methods=["POST"])
+@login_required("director")
+def add_schedule():
+    data = request.json
+    date_str, time_str = data.get("date"), data.get("time")
+    group_id, lesson_id = data.get("group_id"), data.get("lesson_id")
+
+    if not all([date_str, time_str, group_id, lesson_id]):
+        return jsonify({"status": "error", "message": "Заполните все поля"}), 400
+
+    try:
+        h, m = map(int, time_str.split(':'))
+        if h < 8 or h >= 18:
+            return jsonify({"status": "error", "message": "Занятия назначаются только с 08:00 до 18:00"}), 400
+    except ValueError:
+        return jsonify({"status": "error", "message": "Неверный формат времени"}), 400
+
+    db = get_db()
+    group = db.execute("SELECT id_teacher FROM study_groups WHERE id_group=?", (group_id,)).fetchone()
+    if not group:
+        return jsonify({"status": "error", "message": "Группа не найдена"}), 404
+
+    teacher_id = group["id_teacher"]
+    conflict = db.execute("SELECT 1 FROM schedule WHERE date=? AND time=? AND (id_group=? OR id_teacher=?)",
+                          (date_str, time_str, group_id, teacher_id)).fetchone()
+    if conflict:
+        return jsonify({"status": "error", "message": "В это время группа или учитель уже заняты"}), 400
+
+    db.execute("INSERT INTO schedule (id_group, id_teacher, date, time) VALUES (?, ?, ?, ?)",
+               (group_id, teacher_id, date_str, time_str))
+    db.commit()
+    return jsonify({"status": "ok"})
+
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
