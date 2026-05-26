@@ -7,3 +7,18 @@ nav {
     background: #fff; 
     padding: 1rem 2rem; 
     box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.nav-container { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    max-width: 1200px; 
+    margin: 0 auto; }
+.brand { font-weight: bold; font-size: 1.2rem; }
+button, .btn-outline { 
+    padding: 6px 12px; 
+    cursor: pointer; 
+    border-radius: 4px; 
+    border: 1px solid var(--primary); 
+    background: var(--primary); 
+    color: #fff; 
+}
