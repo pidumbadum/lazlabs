@@ -265,6 +265,31 @@ def test_07_refs_schedule():
     print("Refs & Schedule Success")
     _teardown(db_path)
 
+
+def test_08_teacher_tasks():
+    db_path = _setup()
+    db = database.get_db()
+    # Подготовка данных (учитель, предмет, группа)
+    db.execute("INSERT INTO teachers VALUES (30, 'Teach', 'A', 50)")
+    db.execute("INSERT INTO lessons VALUES (3, 'Eng', 1200)")
+    db.execute("INSERT INTO study_groups VALUES (3, 30, 3, 'G3')")
+    db.execute("INSERT INTO users VALUES (30, 't3', ?, 'teacher', 30)", (generate_password_hash("123"),))
+    db.commit()
+
+    client = app.test_client()
+    client.post("/login", data={"login": "t3", "password": "123"}, follow_redirects=True)
+
+    # 1. Создание задания
+    assert client.post("/api/teacher/tasks", json={
+        "group_id": 3, "lesson_id": 3, "title": "HW2", "deadline": "2024-07-01"
+    }).get_json()["status"] == "ok"
+
+    # 2. Проверка списка заданий
+    tasks = client.get("/api/teacher/tasks").get_json()
+    assert len(tasks) == 1 and tasks[0]["title"] == "HW2"
+
+    print("Teacher Tasks API Success")
+
 if __name__ == "__main__":
     test_01_db_init()
     test_02_auth_flow()
@@ -273,4 +298,5 @@ if __name__ == "__main__":
     test_05_tasks_and_grades()
     test_06_director_users()
     test_07_refs_schedule()
-    print("Тесты 1-7 пройдены успешно!")
+    test_08_teacher_tasks()
+    print("Тесты 1-8 пройдены успешно!")
