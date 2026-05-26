@@ -3,18 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <title>Система обучения</title>
-    <link rel="stylesheet" href="..\static\css\style.css">
+    <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
     <nav>
-        <div>
-            <span>📚 Lazlabs</span>
-            <div >
-                <a>Выйти</a>
+        <div class="nav-container">
+            <span class="brand">📚 Lazlabs</span>
+            {% if user %}
+            <div class="user-info">
+                <span>{{ user.role|capitalize }}</span>
+                <a href="/logout" class="btn-outline">Выйти</a>
             </div>
+            {% endif %}
         </div>
     </nav>
-    <main>gegege</main> <!--Тут будет основная страница потом-->
-    <script> </script><!--скрипта нету-->
+    <main>{% block content %}{% endblock %}</main>
+    <script src="../static/js/app.js"></script>
+    {% block scripts %}{% endblock %}
 </body>
 </html>
