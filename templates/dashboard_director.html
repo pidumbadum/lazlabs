@@ -1,0 +1,30 @@
+<div class="dashboard">
+    <div class="tabs">
+        <button class="tab active" data-tab="schedule">Расписание</button>
+        <button class="tab" data-tab="users">Пользователи</button>
+        <button class="tab" data-tab="groups">Группы</button>
+        <button class="tab" data-tab="lessons">Занятия</button>
+        <button class="tab" data-tab="accounting">Бухгалтерия</button>
+    </div>
+
+    <div id="users" class="panel">
+        <h3>Создать пользователя</h3>
+        <form id="user-form" style="background:#fff; padding:15px; border-radius:6px; max-width:500px; margin-bottom:20px;">
+            <select name="role">
+                <option value="teacher">Учитель</option>
+                <option value="student">Ученик</option>
+            </select>
+            <input name="login" placeholder="Логин" required>
+            <input name="password" type="password" placeholder="Пароль" required>
+            <div><input name="name" placeholder="Имя" required><input name="surname" placeholder="Фамилия" required></div>
+            <div id="teacher-fields"><input name="percent" type="number" placeholder="% от занятия" value="30"></div>
+            <div id="student-fields" style="display:none;">
+                <select name="group_id" id="u-group-select" required style="width:100%; padding:8px; margin:8px 0; box-sizing:border-box;"><option>Загрузка...</option></select>
+                <input name="phone" placeholder="Телефон"><input name="parent_name" placeholder="Имя родителя">
+            </div>
+            <button type="button" id="btn-create-user" style="margin-top:10px;">Создать</button>
+        </form>
+    </div>
+
+
+</div>
