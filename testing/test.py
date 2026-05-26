@@ -222,6 +222,49 @@ def test_06_director_users():
     print("Director Users CRUD Success")
     _teardown(db_path)
 
+
+def test_07_refs_schedule():
+    db_path = _setup()
+    db = database.get_db()
+
+    # Подготовка данных
+    db.execute("INSERT INTO teachers VALUES (1, 'T1', 'N1', 30)")
+    db.execute("INSERT INTO lessons VALUES (1, 'Math', 1000)")
+    db.execute("INSERT INTO study_groups VALUES (1, 1, 1, 'G1')")
+    db.execute("INSERT INTO users VALUES (100, 'dir', ?, 'director', 0)", (generate_password_hash("123"),))
+    db.commit()
+
+    client = app.test_client()
+    client.post("/login", data={"login": "dir", "password": "123"}, follow_redirects=True)
+
+    # 1. Проверка справочников (refs)
+    refs = client.get("/api/director/refs").get_json()
+    assert len(refs["lessons"]) == 1 and len(refs["teachers"]) == 1
+
+    # 2. Получение списка групп
+    groups = client.get("/api/director/groups").get_json()
+    assert groups[0]["group_name"] == "G1"
+
+    # 3. Успешное создание расписания
+    assert client.post("/api/director/schedule", json={
+        "date": "2024-05-20", "time": "10:00", "group_id": 1, "lesson_id": 1
+    }).get_json()["status"] == "ok"
+
+    # 4. Проверка конфликта (группа/учитель заняты в то же время)
+    r_conflict = client.post("/api/director/schedule", json={
+        "date": "2024-05-20", "time": "10:00", "group_id": 1, "lesson_id": 1
+    })
+    assert r_conflict.get_json()["status"] == "error" and "заняты" in r_conflict.get_json()["message"]
+
+    # 5. Проверка валидации времени (вне 08:00–18:00)
+    r_time = client.post("/api/director/schedule", json={
+        "date": "2024-05-20", "time": "22:00", "group_id": 1, "lesson_id": 1
+    })
+    assert r_time.status_code == 400 and "08:00 до 18:00" in r_time.get_json()["message"]
+
+    print("Refs & Schedule Success")
+    _teardown(db_path)
+
 if __name__ == "__main__":
     test_01_db_init()
     test_02_auth_flow()
@@ -229,4 +272,5 @@ if __name__ == "__main__":
     test_04_schedule_api()
     test_05_tasks_and_grades()
     test_06_director_users()
-    print("Тесты 1-6 пройдены успешно!")
+    test_07_refs_schedule()
+    print("Тесты 1-7 пройдены успешно!")
