@@ -118,5 +118,65 @@ def complete_lesson(sched_id):
     db.commit()
     return jsonify({"status": "ok"})
 
+@app.route("/api/tasks")
+@login_required()
+def get_tasks():
+    role = session["role"]
+    db = get_db()
+    if role == "student":
+        group = db.execute("SELECT id_group FROM students WHERE id_student=?", (session["linked_id"],)).fetchone()
+        rows = db.execute("""SELECT t.*, ts.grade, ts.status as sub_status, ts.submission_text, ts.submission_file_path, ts.submission_link, l.name as lesson_name
+            FROM tasks t
+            LEFT JOIN task_submissions ts ON t.id_task=ts.id_task AND ts.id_student=?
+            JOIN lessons l ON t.id_lesson=l.id_lesson
+            WHERE t.id_group=? ORDER BY t.deadline""", (session["linked_id"], group["id_group"])).fetchall()
+    elif role == "teacher":
+        group_filter = request.args.get("group")
+        lesson_filter = request.args.get("lesson")
+        q = "SELECT t.*, l.name as lesson_name, sg.group_name FROM tasks t JOIN lessons l ON t.id_lesson=l.id_lesson JOIN study_groups sg ON t.id_group=sg.id_group WHERE t.id_teacher=?"
+        params = [session["linked_id"]]
+        if group_filter: q += " AND t.id_group=? "; params.append(group_filter)
+        if lesson_filter: q += " AND t.id_lesson=? "; params.append(lesson_filter)
+        rows = db.execute(q, params).fetchall()
+    else:
+        rows = db.execute("SELECT t.*, l.name as lesson_name, sg.group_name FROM tasks t JOIN lessons l ON t.id_lesson=l.id_lesson JOIN study_groups sg ON t.id_group=sg.id_group ORDER BY t.deadline").fetchall()
+    return jsonify([dict(r) for r in rows])
+
+@app.route("/api/submit/<int:task_id>", methods=["POST"])
+@login_required("student")
+def submit_task(task_id):
+    db = get_db()
+    data = request.form
+    file = request.files.get("file")
+    path = None
+    if file and file.filename:
+        path = os.path.join(app.config["UPLOAD_FOLDER"], f"{task_id}_{session['linked_id']}_{file.filename}")
+        file.save(path)
+    db.execute("""INSERT OR REPLACE INTO task_submissions (id_task, id_student, submission_text, submission_file_path, submission_link, status)
+        VALUES (?, ?, ?, ?, ?, 'submitted') ON CONFLICT DO UPDATE SET
+        submission_text=excluded.submission_text, submission_file_path=excluded.submission_file_path,
+        submission_link=excluded.submission_link, status='submitted'""",
+        (task_id, session["linked_id"], data.get("text"), path, data.get("link")))
+    db.commit()
+    return jsonify({"status": "ok"})
+
+@app.route("/api/grade/<int:task_id>/<int:sub_id>", methods=["POST"])
+@login_required("teacher")
+def grade_task(task_id, sub_id):
+    data = request.json
+    db = get_db()
+    db.execute("UPDATE task_submissions SET grade=?, status='checked' WHERE id_submission=?",
+        (data.get("grade"), sub_id))
+    db.commit()
+    return jsonify({"status": "ok"})
+
+@app.route("/api/submissions/<int:task_id>")
+@login_required("teacher")
+def get_submissions(task_id):
+    db = get_db()
+    rows = db.execute("""SELECT ts.id_submission, s.name, s.surname, ts.grade, ts.status, ts.submission_text, ts.submission_file_path, ts.submission_link
+        FROM task_submissions ts JOIN students s ON ts.id_student=s.id_student WHERE ts.id_task=?""", (task_id,)).fetchall()
+    return jsonify([dict(r) for r in rows])
+
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
