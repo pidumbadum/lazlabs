@@ -153,9 +153,40 @@ def test_04_schedule_api():
     _teardown(db_path)
 
 
+def test_05_tasks_and_grades():
+    db_path = _setup()
+    db = database.get_db()
+
+    # Подготовка данных
+    db.execute("INSERT INTO teachers VALUES (20, 'T', 'T', 40)")
+    db.execute("INSERT INTO lessons VALUES (2, 'Phys', 1500)")
+    db.execute("INSERT INTO study_groups VALUES (2, 20, 2, 'G2')")
+    db.execute("INSERT INTO students VALUES (200, 2, 'S', 'S', '+7', 'P', '+7', 'p@e')")
+    db.execute("INSERT INTO tasks VALUES (200, 2, 20, 2, 'HW1', 'desc', '2024-06-01', 'active', 100)")
+    db.commit()
+
+    client = app.test_client()
+
+    # 1. Студент сдаёт работу
+    _login(client, "s2", role="student", linked_id=200)
+    assert client.post("/api/submit/200", data={"text": "ans"}).get_json()["status"] == "ok"
+    client.get("/logout")
+
+    # 2. Учитель проверяет и ставит оценку
+    db.execute("INSERT INTO users VALUES (21, 't2', ?, 'teacher', 20)", (generate_password_hash("123"),))
+    db.commit()
+    client.post("/login", data={"login": "t2", "password": "123"}, follow_redirects=True)
+    assert client.post("/api/grade/200/1", json={"grade": 85}).get_json()["status"] == "ok"
+
+    # 3. Проверяем, что оценка записалась в БД
+    assert db.execute("SELECT grade FROM task_submissions WHERE id_task=200").fetchone()["grade"] == 85
+
+    print("Tasks & Grades Success")
+    _teardown(db_path)
+
 if __name__ == "__main__":
     test_01_db_init()
     test_02_auth_flow()
     test_03_dashboard_roles()
     test_04_schedule_api()
-    print("Тесты 1-4 пройдены успешно!")
+    print("Тесты 1-5 пройдены успешно!")
