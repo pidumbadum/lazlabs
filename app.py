@@ -178,5 +178,75 @@ def get_submissions(task_id):
         FROM task_submissions ts JOIN students s ON ts.id_student=s.id_student WHERE ts.id_task=?""", (task_id,)).fetchall()
     return jsonify([dict(r) for r in rows])
 
+@app.route("/api/director/users", methods=["POST"])
+@login_required("director")
+def create_user():
+    data = request.json
+    db = get_db()
+    try:
+        pwd_hash = generate_password_hash(data["password"])
+        linked = 0
+        role = data["role"]
+        if role == "teacher":
+            db.execute("INSERT INTO teachers (name, surname, payout_percent) VALUES (?, ?, ?)",
+                       (data["name"], data["surname"], data.get("percent", 30)))
+            linked = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+        elif role == "student":
+            db.execute("""INSERT INTO students (name, surname, id_group, phone_number, parent_name, parent_phone, parent_email) 
+                       VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                       (data["name"], data["surname"], data.get("group_id"), data.get("phone"),
+                        data.get("parent_name"), data.get("parent_phone"), data.get("parent_email")))
+            linked = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+        db.execute("INSERT INTO users (login, password_hash, role, linked_entity_id) VALUES (?, ?, ?, ?)",
+                   (data["login"], pwd_hash, role, linked))
+        db.commit()
+        return jsonify({"status": "ok"})
+    except sqlite3.IntegrityError:
+        db.rollback()
+        return jsonify({"status": "error", "message": "Этот логин уже занят. Придумайте другой."}), 400
+
+
+@app.route("/api/director/users", methods=["GET"])
+@login_required("director")
+def get_users_list():
+    db = get_db()
+    rows = db.execute("""SELECT u.id, u.login, u.role,
+        CASE WHEN u.role='teacher' THEN t.name || ' ' || t.surname
+             WHEN u.role='student' THEN s.name || ' ' || s.surname
+             ELSE 'Администратор' END as full_name
+        FROM users u
+        LEFT JOIN teachers t ON u.role='teacher' AND u.linked_entity_id = t.id_teacher
+        LEFT JOIN students s ON u.role='student' AND u.linked_entity_id = s.id_student
+        ORDER BY u.role, u.login""").fetchall()
+    return jsonify([dict(r) for r in rows])
+
+
+@app.route("/api/director/users/<int:user_id>", methods=["DELETE"])
+@login_required("director")
+def delete_user(user_id):
+    if user_id == session.get("user_id"):
+        return jsonify({"status": "error", "message": "Нельзя удалить свой собственный аккаунт"}), 403
+
+    db = get_db()
+    user = db.execute("SELECT role, linked_entity_id FROM users WHERE id=?", (user_id,)).fetchone()
+    if not user:
+        return jsonify({"status": "error", "message": "Пользователь не найден"}), 404
+    if user["role"] == "director":
+        return jsonify({"status": "error", "message": "Удаление директоров запрещено"}), 403
+
+    try:
+        if user["role"] == "student":
+            db.execute("DELETE FROM task_submissions WHERE id_student=?", (user["linked_entity_id"],))
+            db.execute("DELETE FROM accounting WHERE id_student=?", (user["linked_entity_id"],))
+            db.execute("DELETE FROM students WHERE id_student=?", (user["linked_entity_id"],))
+        elif user["role"] == "teacher":
+            db.execute("DELETE FROM teachers WHERE id_teacher=?", (user["linked_entity_id"],))
+        db.execute("DELETE FROM users WHERE id=?", (user_id,))
+        db.commit()
+        return jsonify({"status": "ok"})
+    except sqlite3.IntegrityError:
+        return jsonify({"status": "error", "message": "Нельзя удалить: есть зависимые записи"}), 400
+
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
