@@ -361,5 +361,49 @@ def api_teacher_tasks():
     rows = db.execute(q, params).fetchall()
     return jsonify([dict(r) for r in rows])
 
+@app.route("/api/accounting", methods=["GET", "POST"])
+@login_required("director")
+def accounting_api():
+    db = get_db()
+    if request.method == "POST":
+        data = request.json
+        db.execute("""INSERT INTO accounting (id_student, id_lesson, date, payment_amount, is_paid, classes_paid, classes_left)
+            VALUES (?, ?, ?, ?, 1, ?, ?)""",
+                   (data["student_id"], data["lesson_id"], data["date"], data["amount"], data["classes_paid"],
+                    data["classes_left"]))
+        db.commit()
+        return jsonify({"status": "ok"})
+
+    start, end = request.args.get("start", "2020-01-01"), request.args.get("end", "2099-12-31")
+    total_paid = \
+    db.execute("SELECT COALESCE(SUM(payment_amount),0) FROM accounting WHERE date BETWEEN ? AND ? AND is_paid=1",
+               (start, end)).fetchone()[0]
+    completed = db.execute("""SELECT COALESCE(SUM(l.price_hour * t.payout_percent / 100.0), 0) as payout
+        FROM schedule s JOIN study_groups sg ON s.id_group=sg.id_group JOIN teachers t ON sg.id_teacher =t.id_teacher JOIN lessons l ON sg.id_lesson=l.id_lesson
+        WHERE s.is_completed=1 AND s.date BETWEEN ? AND ?""", (start, end)).fetchone()["payout"]
+    profit = total_paid - completed
+    records = db.execute("""SELECT a.*, s.name || ' ' || s.surname as student_name, l.name as lesson_name
+        FROM accounting a JOIN students s ON a.id_student=s.id_student JOIN lessons l ON a.id_lesson=l.id_lesson ORDER BY a.date DESC""").fetchall()
+    return jsonify(
+        {"records": [dict(r) for r in records], "total_paid": total_paid, "payouts": completed, "profit": profit})
+
+
+@app.route("/api/notifications")
+@login_required("teacher")
+def get_notifications():
+    db = get_db()
+    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+    teacher_id = session["linked_id"]
+    missed_lessons = db.execute("""SELECT s.id_schedule, s.date, s.time, sg.group_name, l.name as lesson_name
+        FROM schedule s JOIN study_groups sg ON s.id_group = sg.id_group JOIN lessons l ON sg.id_lesson = l.id_lesson
+        WHERE s.id_teacher = ? AND (s.date || ' ' || s.time) <= ? AND s.is_completed = 0 ORDER BY s.date, s.time""",
+                                (teacher_id, now)).fetchall()
+    new_submissions = db.execute("""SELECT ts.id_submission, ts.id_task, t.title as task_title, s.name || ' ' || s.surname as student_name,
+        ts.submission_text, ts.submission_link, ts.submission_file_path, ts.submitted_at
+        FROM task_submissions ts JOIN tasks t ON ts.id_task = t.id_task JOIN students s ON ts.id_student = s.id_student
+        WHERE t.id_teacher = ? AND ts.status = 'submitted' ORDER BY ts.submitted_at DESC LIMIT 15""",
+                                 (teacher_id,)).fetchall()
+    return jsonify({"lessons": [dict(r) for r in missed_lessons], "submissions": [dict(r) for r in new_submissions]})
+
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
