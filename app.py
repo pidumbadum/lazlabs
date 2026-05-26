@@ -332,5 +332,34 @@ def add_schedule():
     db.commit()
     return jsonify({"status": "ok"})
 
+@app.route("/api/teacher/tasks", methods=["GET", "POST"])
+@login_required("teacher")
+def api_teacher_tasks():
+    db = get_db()
+    if request.method == "POST":
+        data = request.json
+        if not all(k in data for k in ["group_id", "lesson_id", "title", "deadline"]):
+            return jsonify({"status": "error", "message": "Заполните обязательные поля"}), 400
+        db.execute("""INSERT INTO tasks (id_group, id_teacher, id_lesson, title, description, deadline, max_points, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'active')""",
+                   (data["group_id"], session["linked_id"], data["lesson_id"], data["title"],
+                    data.get("description", " "), data["deadline"], data.get("max_points", 100)))
+        db.commit()
+        return jsonify({"status": "ok"})
+
+    group = request.args.get("group")
+    lesson = request.args.get("lesson")
+    q = """SELECT t.*, sg.group_name, l.name as lesson_name
+        FROM tasks t
+        JOIN study_groups sg ON t.id_group = sg.id_group
+        JOIN lessons l ON t.id_lesson = l.id_lesson
+        WHERE t.id_teacher = ? """
+    params = [session["linked_id"]]
+    if group: q += " AND t.id_group=? "; params.append(group)
+    if lesson: q += " AND t.id_lesson=? "; params.append(lesson)
+    q += " ORDER BY t.deadline DESC"
+    rows = db.execute(q, params).fetchall()
+    return jsonify([dict(r) for r in rows])
+
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
