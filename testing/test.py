@@ -325,6 +325,31 @@ def test_09_acc_notifs():
     print(" Accounting & Notifications Success")
     _teardown(db_path)
 
+
+def test_10_add_director_logic():
+    db_path = _setup()
+    conn = sqlite3.connect(db_path)
+    pwd_hash = generate_password_hash("admin123")
+
+    # Первая вставка
+    conn.execute("""INSERT OR IGNORE INTO users (login, password_hash, role, linked_entity_id)
+        VALUES ('director', ?, 'director', 0)""", (pwd_hash,))
+    conn.commit()
+
+    row = conn.execute("SELECT login, role FROM users WHERE login='director'").fetchone()
+    assert row is not None and row["login"] == "director"
+
+    # Повторная вставка (должна игнорироваться)
+    conn.execute("""INSERT OR IGNORE INTO users (login, password_hash, role, linked_entity_id)
+        VALUES ('director', ?, 'director', 0)""", (pwd_hash,))
+    conn.commit()
+
+    assert conn.execute("SELECT COUNT(*) FROM users WHERE login='director'").fetchone()[0] == 1
+    conn.close()
+
+    _teardown(db_path)
+    print("Add Director Logic Success")
+
 if __name__ == "__main__":
     test_01_db_init()
     test_02_auth_flow()
@@ -335,4 +360,5 @@ if __name__ == "__main__":
     test_07_refs_schedule()
     test_08_teacher_tasks()
     test_09_acc_notifs()
-    print("Тесты 1-9 пройдены успешно!")
+    test_10_add_director_logic()
+    print("Тесты 1-10 пройдены успешно!")
