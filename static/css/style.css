@@ -1,3 +1,6 @@
+:root { --bg: #f4f6f9; 
+    --primary: #2563eb; 
+    --text: #1f2937; }
 body { 
     font-family: system-ui, sans-serif; 
     margin: 0; 
@@ -47,3 +50,19 @@ button, .btn-outline {
     display: none; 
     padding: 10px; }
 .panel.active { display: block; }
+table { width: 100%; 
+    border-collapse: collapse; 
+    background: #fff; 
+    margin-top: 10px; }
+.auth-container { 
+    max-width: 300px; 
+    margin: 80px auto; 
+    background: #fff; 
+    padding: 2rem; 
+    border-radius: 8px; 
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+input, select { 
+    width: 100%; 
+    padding: 8px; 
+    margin: 8px 0; 
+    box-sizing: border-box; }

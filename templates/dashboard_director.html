@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 
 {% block content %}
-
 <div class="dashboard">
     <div class="tabs">
         <button class="tab active" data-tab="schedule">Расписание</button>
@@ -11,10 +10,23 @@
         <button class="tab" data-tab="accounting">Бухгалтерия</button>
     </div>
 
+    <div id="schedule" class="panel active">
+        <h3>Назначить занятие</h3>
+        <form id="sched-form" style="background:#fff; padding:15px; border-radius:6px; margin-bottom:20px; display:flex; gap:10px; flex-wrap:wrap;">
+            <input type="date" name="date" required>
+            <input type="time" name="time" required>
+            <select name="group_id" id="sched-group" required style="flex:1;"><option>Загрузка групп...</option></select>
+            <select name="lesson_id" id="sched-lesson" required style="flex:1;"><option>Загрузка предметов...</option></select>
+            <button type="button" id="btn-add-sched">Добавить</button>
+        </form>
+        <h3>Расписание на неделю</h3>
+        <table id="dir-sched-table"><thead><tr><th>Дата</th><th>Время</th><th>Группа</th><th>Учитель</th><th>Предмет</th></tr></thead><tbody></tbody></table>
+    </div>
+
     <div id="users" class="panel">
         <h3>Создать пользователя</h3>
         <form id="user-form" style="background:#fff; padding:15px; border-radius:6px; max-width:500px; margin-bottom:20px;">
-            <select name="role">
+            <select name="role" id="u-role" onchange="toggleUserFields()">
                 <option value="teacher">Учитель</option>
                 <option value="student">Ученик</option>
             </select>
@@ -28,6 +40,54 @@
             </div>
             <button type="button" id="btn-create-user" style="margin-top:10px;">Создать</button>
         </form>
+        <h3>Список пользователей</h3>
+        <table id="users-list-table"><thead><tr><th>Логин</th><th>Имя</th><th>Роль</th><th>Действие</th></tr></thead><tbody></tbody></table>
+    </div>
+
+    <div id="groups" class="panel">
+        <h3>Создать группу</h3>
+        <form id="group-form" style="background:#fff; padding:15px; border-radius:6px; max-width:500px; margin-bottom:20px;">
+            <input name="group_name" placeholder="Название группы" required>
+            <select name="id_teacher" id="g-teacher" required><option>Загрузка...</option></select>
+            <select name="id_lesson" id="g-lesson" required><option>Загрузка...</option></select>
+            <button type="button" id="btn-create-group" style="margin-top:10px;">Создать</button>
+        </form>
+        <h3>Группы</h3>
+        <table id="groups-table"><thead><tr><th>ID</th><th>Название</th><th>Учитель</th><th>Предмет</th></tr></thead><tbody></tbody></table>
+    </div>
+
+    <div id="lessons" class="panel">
+        <h3>Добавить занятие</h3>
+        <form id="lesson-form" style="background:#fff; padding:15px; border-radius:6px; max-width:400px; margin-bottom:20px;">
+            <input name="name" placeholder="Название" required>
+            <input name="price_hour" type="number" step="0.01" placeholder="Цена/час" required>
+            <button type="button" id="btn-add-lesson" style="margin-top:10px;">Добавить</button>
+        </form>
+        <h3>Занятия</h3>
+        <table id="lessons-table"><thead><tr><th>ID</th><th>Название</th><th>Цена</th><th>Действие</th></tr></thead><tbody></tbody></table>
+    </div>
+
+    <div id="accounting" class="panel">
+        <h3>Бухгалтерия</h3>
+        <div style="display:flex; gap:10px; margin-bottom:15px;">
+            <input type="date" id="acc-start"><input type="date" id="acc-end"><button onclick="loadAccounting()">Рассчитать</button>
+        </div>
+        <div style="display:flex; gap:20px; margin-bottom:15px; flex-wrap:wrap;">
+            <div class="stat-card">Получено: <span id="st-paid">0</span> ₽</div>
+            <div class="stat-card">Выплаты: <span id="st-payout">0</span> ₽</div>
+            <div class="stat-card">Прибыль: <span id="st-profit">0</span> ₽</div>
+        </div>
+        <table id="acc-table"><thead><tr><th>Дата</th><th>Ученик</th><th>Предмет</th><th>Сумма</th><th>Оплачено</th><th>Остаток</th></tr></thead><tbody></tbody></table>
+        <form id="pay-form" style="background:#fff; padding:10px; border-radius:6px; margin-top:15px;">
+            <input name="student_id" type="number" placeholder="ID ученика" required>
+            <input name="lesson_id" type="number" placeholder="ID предмета" required>
+            <input type="date" name="date" required><input name="amount" type="number" step="0.01" placeholder="Сумма" required>
+            <input name="classes_paid" type="number" placeholder="Кол-во" required><input name="classes_left" type="number" placeholder="Остаток" required>
+            <button type="submit" style="margin-top:5px;">Внести</button>
+        </form>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
 {% endblock %}
