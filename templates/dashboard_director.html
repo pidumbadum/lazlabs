@@ -90,4 +90,56 @@
 {% endblock %}
 
 {% block scripts %}
+<script>
+    // Загрузка расписания
+function loadDirSchedule() {
+    fetch('/api/schedule')
+        .then(r => r.json())
+        .then(d => {
+            document.querySelector('#dir-sched-table tbody').innerHTML = d.map(r =>
+                `<tr><td>${r.date}</td><td>${r.time}</td><td>${r.group_name}</td><td>${r.teacher_name}</td><td>${r.lesson_name}</td></tr>`
+            ).join('');
+        });
+}
+
+// Загрузка групп
+function loadGroups() {
+    fetch('/api/director/groups')
+        .then(r => r.json())
+        .then(d => {
+            document.querySelector('#groups-table tbody').innerHTML = d.map(g =>
+                `<tr><td>${g.id_group}</td><td>${g.group_name}</td><td>${g.teacher_name||'-'}</td><td>${g.lesson_name||'-'}</td></tr>`
+            ).join('');
+        });
+}
+
+// Загрузка предметов
+function loadLessons() {
+    fetch('/api/director/lessons')
+        .then(r => r.json())
+        .then(d => {
+            document.querySelector('#lessons-table tbody').innerHTML = d.map(l =>
+                `<tr><td>${l.id_lesson}</td><td>${l.name}</td><td>${l.price_hour}₽</td><td><button onclick="deleteLesson(${l.id_lesson})" style="background:#ef4444;">Удалить</button></td></tr>`
+            ).join('');
+        });
+}
+
+// Загрузка пользователей
+function loadUsersList() {
+    fetch('/api/director/users')
+        .then(r => r.json())
+        .then(d => {
+            document.querySelector('#users-list-table tbody').innerHTML = d.map(u =>
+                `<tr><td>${u.login}</td><td>${u.full_name||'-'}</td><td>${u.role}</td><td><button onclick="deleteUser(${u.id})" style="background:#ef4444;">Удалить</button></td></tr>`
+            ).join('');
+        });
+}
+
+// Переключение полей формы пользователя
+function toggleUserFields() {
+    const r = document.getElementById('u-role').value;
+    document.getElementById('teacher-fields').style.display = r === 'teacher' ? 'block' : 'none';
+    document.getElementById('student-fields').style.display = r === 'student' ? 'block' : 'none';
+}
+</script>
 {% endblock %}
