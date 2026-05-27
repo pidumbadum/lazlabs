@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="dashboard">
+    <!--Блок уведомлений -->
+    <div id="notification-banner" style="display:none; background:#fff3cd; border:1px solid #ffecb5; border-radius:6px; padding:12px; margin-bottom:15px;">
+        <h4 style="margin:0 0 8px 0;">Уведомления</h4>
+        <div id="notif-list"></div>
+    </div>
+
+    <div class="tabs">
+        <button class="tab active" data-tab="schedule">Расписание</button>
+        <button class="tab" data-tab="tasks">Задания</button>
+    </div>
+
+    <!-- Расписание -->
+    <div id="schedule" class="panel active">
+        <h3>Моё расписание на неделю</h3>
+        <div id="schedule-container" style="overflow-x:auto;"></div>
+    </div>
+
+    <!-- Задания -->
+    <div id="tasks" class="panel">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <h3 style="margin:0;">Назначенные задания</h3>
+            <button >Назначить задание</button>
+        </div>
+        
+        <div style="display:flex; gap:10px; margin-bottom:15px;">
+            <select id="t-filter-group"><option value="">Все группы</option></select>
+            <select id="t-filter-lesson"><option value="">Все предметы</option></select>
+        </div>
+
+        <table id="teach-tasks-table">
+            <thead><tr><th>Группа</th><th>Предмет</th><th>Название</th><th>Дедлайн</th><th>Макс. балл</th><th>Действие</th></tr></thead>
+            <tbody></tbody>
+        </table>
+
+        <!-- Форма создания задания -->
+        <div id="task-form-panel" style="display:none; background:#f8fafc; padding:15px; border-radius:6px; margin-top:15px; border:1px solid #e2e8f0;">
+            <h4>Новое задание</h4>
+            <form id="create-task-form" style="display:grid; gap:10px; grid-template-columns: 1fr 1fr;">
+                <select name="group_id" id="t-form-group" required><option>Загрузка групп...</option></select>
+                <select name="lesson_id" id="t-form-lesson" required><option>Загрузка предметов...</option></select>
+                <input name="title" placeholder="Название задания" required>
+                <input name="deadline" type="date" required>
+                <input name="max_points" type="number" value="100" placeholder="Макс. баллов">
+                <textarea name="description" placeholder="Описание или условия задания" style="grid-column: span 2;"></textarea>
+                <div style="grid-column: span 2; display:flex; gap:10px;">
+                    <button type="button">Создать</button>
+                    <button type="button" style="background:#64748b;">Отмена</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Панель проверок сдач -->
+    <div id="submissions-panel" class="panel" style="display:none;">
+        <button style="margin-bottom:15px;">← Назад к списку заданий</button>
+        <h3>Сдачи: <span id="sub-task-name" style="color:#2563eb;"></span></h3>
+        <table id="subs-table">
+            <thead><tr><th>Ученик</th><th>Статус</th><th>Текст ответа</th><th>Материалы</th><th>Оценка</th><th>Действие</th></tr></thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% endblock %}
