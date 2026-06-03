@@ -3,7 +3,7 @@ import datetime
 import sqlite3
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash, g
 from werkzeug.security import generate_password_hash, check_password_hash
-from database import get_db, init_db, SCHEMA_SQL
+from core import get_db, init_db
 from functools import wraps
 
 app = Flask(__name__)
@@ -14,13 +14,8 @@ UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), "uploads")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
-# Дублируем схему в файл schema.sql для удобства просмотра и отладки
-with open(os.path.join(os.path.dirname(__file__), "schema.sql"), "w", encoding="utf-8") as f:
-    f.write(SCHEMA_SQL)
-
 # Инициализируем БД при старте (создаёт таблицы, если их нет)
 init_db()
-
 
 @app.teardown_appcontext
 def close_db(exception):
