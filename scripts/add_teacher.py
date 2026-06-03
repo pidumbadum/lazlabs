@@ -1,14 +1,10 @@
-import sqlite3
+import sys
 import os
 from werkzeug.security import generate_password_hash
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "school.db")
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'packages', 'core'))
+from core import get_db, init_db
 
-if not os.path.exists(DB_PATH):
-    print(" Файл school.db не найден. Сначала запустите app.py и остановите его (Ctrl+C).")
-    exit()
-
-conn = sqlite3.connect(DB_PATH)
 pwd_hash = generate_password_hash("teacher123")
 
 # 1. Создаём запись в таблице teachers с базовыми данными и процентом выплат
