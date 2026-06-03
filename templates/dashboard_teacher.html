@@ -67,4 +67,52 @@
 {% endblock %}
 
 {% block scripts %}
+<script>
+// расписание тута
+function loadTeacherSchedule() {
+    fetch('/api/schedule')
+        .then(r => r.json())
+        .then(data => {
+            const days = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
+            let byDay = Array(7).fill(null).map(() => []);
+            
+            data.forEach(item => {
+                const d = new Date(item.date);
+                let idx = d.getDay() - 1; 
+                if (idx === -1) idx = 6;
+                byDay[idx].push(item);
+            });
+
+            let html = '<table style="width:100%; border-collapse:collapse; background:#fff; border-radius:6px; overflow:hidden;">';
+            html += '<tr>' + days.map(d => 
+                `<th style="background:#f1f5f9; padding:12px; border-bottom:2px solid #e2e8f0; text-align:center;">${d}</th>`
+            ).join('') + '</tr><tr>';
+            
+            days.forEach((_, i) => {
+                let lessons = byDay[i].sort((a,b) => a.time.localeCompare(b.time));
+                html += '<td style="padding:10px; border-right:1px solid #e2e8f0; vertical-align:top;">';
+                if (lessons.length) {
+                    html += lessons.map(l => 
+                        `<div style="background:#e0f2fe; padding:8px; margin-bottom:8px; border-radius:4px; font-size:0.9rem; border-left:3px solid #2563eb;">
+                            <b>${l.time}</b><br>${l.group_name}<br>${l.lesson_name}<br>
+                            <span style="font-size:0.75rem; color:${l.is_completed ? '#16a34a' : '#ca8a04'}">
+                                ${l.is_completed ? 'Проведено' : 'Ожидает отметки'}
+                            </span>
+                        </div>`
+                    ).join('');
+                } else {
+                    html += '<span style="color:#94a3b8; font-style:italic;">Нет занятий</span>';
+                }
+                html += '</td>';
+            });
+            html += '</tr></table>';
+            document.getElementById('schedule-container').innerHTML = html;
+        });
+}
+
+// Инициализация при загрузке
+document.addEventListener('DOMContentLoaded', () => {
+    loadTeacherSchedule();
+});
+</script>
 {% endblock %}
