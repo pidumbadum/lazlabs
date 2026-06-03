@@ -1,15 +1,9 @@
-import sqlite3
+import sys
 import os
 from werkzeug.security import generate_password_hash
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "school.db")
-
-# Проверяем, создана ли БД. Если нет, просим сначала запустить app.py для инициализации схемы.
-if not os.path.exists(DB_PATH):
-    print(" Файл school.db не найден. Сначала запустите app.py и остановите его (Ctrl+C).")
-    exit()
-
-conn = sqlite3.connect(DB_PATH)
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'packages', 'core'))
+from core import get_db, init_db
 # Хэшируем пароль безопасным способом (не храним в открытом виде)
 pwd_hash = generate_password_hash("admin123")
 
