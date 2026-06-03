@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="dashboard">
+    <div class="tabs">
+        <button class="tab active" data-tab="schedule">Расписание</button>
+        <button class="tab" data-tab="users">Пользователи</button>
+        <button class="tab" data-tab="groups">Группы</button>
+        <button class="tab" data-tab="lessons">Занятия</button>
+        <button class="tab" data-tab="accounting">Бухгалтерия</button>
+    </div>
+
+    <div id="schedule" class="panel active">
+        <h3>Назначить занятие</h3>
+        <form id="sched-form" style="background:#fff; padding:15px; border-radius:6px; margin-bottom:20px; display:flex; gap:10px; flex-wrap:wrap;">
+            <input type="date" name="date" required>
+            <input type="time" name="time" required>
+            <select name="group_id" id="sched-group" required style="flex:1;"><option>Загрузка групп...</option></select>
+            <select name="lesson_id" id="sched-lesson" required style="flex:1;"><option>Загрузка предметов...</option></select>
+            <button type="button" id="btn-add-sched">Добавить</button>
+        </form>
+        <h3>Расписание на неделю</h3>
+        <table id="dir-sched-table"><thead><tr><th>Дата</th><th>Время</th><th>Группа</th><th>Учитель</th><th>Предмет</th></tr></thead><tbody></tbody></table>
+    </div>
+
+    <div id="users" class="panel">
+        <h3>Создать пользователя</h3>
+        <form id="user-form" style="background:#fff; padding:15px; border-radius:6px; max-width:500px; margin-bottom:20px;">
+            <select name="role" id="u-role" onchange="toggleUserFields()">
+                <option value="teacher">Учитель</option>
+                <option value="student">Ученик</option>
+            </select>
+            <input name="login" placeholder="Логин" required>
+            <input name="password" type="password" placeholder="Пароль" required>
+            <div><input name="name" placeholder="Имя" required><input name="surname" placeholder="Фамилия" required></div>
+            <div id="teacher-fields"><input name="percent" type="number" placeholder="% от занятия" value="30"></div>
+            <div id="student-fields" style="display:none;">
+                <select name="group_id" id="u-group-select" required style="width:100%; padding:8px; margin:8px 0; box-sizing:border-box;"><option>Загрузка...</option></select>
+                <input name="phone" placeholder="Телефон"><input name="parent_name" placeholder="Имя родителя">
+            </div>
+            <button type="button" id="btn-create-user" style="margin-top:10px;">Создать</button>
+        </form>
+        <h3>Список пользователей</h3>
+        <table id="users-list-table"><thead><tr><th>Логин</th><th>Имя</th><th>Роль</th><th>Действие</th></tr></thead><tbody></tbody></table>
+    </div>
+
+    <div id="groups" class="panel">
+        <h3>Создать группу</h3>
+        <form id="group-form" style="background:#fff; padding:15px; border-radius:6px; max-width:500px; margin-bottom:20px;">
+            <input name="group_name" placeholder="Название группы" required>
+            <select name="id_teacher" id="g-teacher" required><option>Загрузка...</option></select>
+            <select name="id_lesson" id="g-lesson" required><option>Загрузка...</option></select>
+            <button type="button" id="btn-create-group" style="margin-top:10px;">Создать</button>
+        </form>
+        <h3>Группы</h3>
+        <table id="groups-table"><thead><tr><th>ID</th><th>Название</th><th>Учитель</th><th>Предмет</th></tr></thead><tbody></tbody></table>
+    </div>
+
+    <div id="lessons" class="panel">
+        <h3>Добавить занятие</h3>
+        <form id="lesson-form" style="background:#fff; padding:15px; border-radius:6px; max-width:400px; margin-bottom:20px;">
+            <input name="name" placeholder="Название" required>
+            <input name="price_hour" type="number" step="0.01" placeholder="Цена/час" required>
+            <button type="button" id="btn-add-lesson" style="margin-top:10px;">Добавить</button>
+        </form>
+        <h3>Занятия</h3>
+        <table id="lessons-table"><thead><tr><th>ID</th><th>Название</th><th>Цена</th><th>Действие</th></tr></thead><tbody></tbody></table>
+    </div>
+
+    <div id="accounting" class="panel">
+        <h3>Бухгалтерия</h3>
+        <div style="display:flex; gap:10px; margin-bottom:15px;">
+            <input type="date" id="acc-start"><input type="date" id="acc-end"><button onclick="loadAccounting()">Рассчитать</button>
+        </div>
+        <div style="display:flex; gap:20px; margin-bottom:15px; flex-wrap:wrap;">
+            <div class="stat-card">Получено: <span id="st-paid">0</span> ₽</div>
+            <div class="stat-card">Выплаты: <span id="st-payout">0</span> ₽</div>
+            <div class="stat-card">Прибыль: <span id="st-profit">0</span> ₽</div>
+        </div>
+        <table id="acc-table"><thead><tr><th>Дата</th><th>Ученик</th><th>Предмет</th><th>Сумма</th><th>Оплачено</th><th>Остаток</th></tr></thead><tbody></tbody></table>
+        <form id="pay-form" style="background:#fff; padding:10px; border-radius:6px; margin-top:15px;">
+            <input name="student_id" type="number" placeholder="ID ученика" required>
+            <input name="lesson_id" type="number" placeholder="ID предмета" required>
+            <input type="date" name="date" required><input name="amount" type="number" step="0.01" placeholder="Сумма" required>
+            <input name="classes_paid" type="number" placeholder="Кол-во" required><input name="classes_left" type="number" placeholder="Остаток" required>
+            <button type="submit" style="margin-top:5px;">Внести</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    loadDirSchedule(); loadAccounting(); loadUsersList(); loadGroups(); loadRefs(); loadLessons(); loadStudentGroupDropdown(); loadSchedRefs();
+
+    // 1. Создание пользователя
+    document.getElementById('btn-create-user')?.addEventListener('click', () => {
+        const btn = document.getElementById('btn-create-user');
+        if(btn.disabled) return; btn.disabled=true; btn.textContent='Загрузка...';
+        fetch('/api/director/users', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(Object.fromEntries(new FormData(document.getElementById('user-form'))))})
+        .then(r=>r.json()).then(res=>{ alert(res.status==='ok'?'Создан':'Ошибка: '+res.message); if(res.status==='ok') document.getElementById('user-form').reset(); loadUsersList(); })
+        .catch(()=>alert('Ошибка сети')).finally(()=>{btn.disabled=false; btn.textContent='Создать';});
+    });
+
+    // 2. Создание группы
+    document.getElementById('btn-create-group')?.addEventListener('click', () => {
+        const btn = document.getElementById('btn-create-group');
+        if(btn.disabled) return; btn.disabled=true; btn.textContent='Загрузка...';
+        fetch('/api/director/groups', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(Object.fromEntries(new FormData(document.getElementById('group-form'))))})
+        .then(r=>r.json()).then(res=>{ alert(res.status==='ok'?'Группа создана':'Ошибка: '+res.message); if(res.status==='ok') document.getElementById('group-form').reset(); loadGroups(); })
+        .catch(()=>alert('Ошибка сети')).finally(()=>{btn.disabled=false; btn.textContent='Создать группу';});
+    });
+
+    // 3. Добавление занятия в расписание
+    document.getElementById('btn-add-sched')?.addEventListener('click', () => {
+        const btn = document.getElementById('btn-add-sched');
+        if(btn.disabled) return; btn.disabled=true; btn.textContent='Загрузка...';
+        fetch('/api/director/schedule', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(Object.fromEntries(new FormData(document.getElementById('sched-form'))))})
+        .then(r=>r.json()).then(res=>{ 
+            if(res.status==='ok') { alert('Занятие добавлено'); document.getElementById('sched-form').reset(); loadDirSchedule(); } 
+            else alert('Ошибка: '+res.message); 
+        }).catch(()=>alert('Ошибка сети')).finally(()=>{btn.disabled=false; btn.textContent='Добавить';});
+    });
+
+    // 4. Добавление предмета
+    document.getElementById('btn-add-lesson')?.addEventListener('click', () => {
+        const btn = document.getElementById('btn-add-lesson');
+        if(btn.disabled) return; btn.disabled=true; btn.textContent='Загрузка...';
+        fetch('/api/director/lessons', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(Object.fromEntries(new FormData(document.getElementById('lesson-form'))))})
+        .then(r=>r.json()).then(res=>{ alert(res.status==='ok'?'Добавлено':'Ошибка'); if(res.status==='ok') document.getElementById('lesson-form').reset(); loadLessons(); })
+        .catch(()=>alert('Ошибка сети')).finally(()=>{btn.disabled=false; btn.textContent='Добавить';});
+    });
+
+    // Удаление пользователя
+    window.deleteUser = (id) => { if(!confirm('Удалить пользователя?')) return; fetch(`/api/director/users/${id}`, {method:'DELETE'}).then(r=>r.json()).then(res=>{ alert(res.status==='ok'?'Удален':'Ошибка: '+res.message); loadUsersList(); }); };
+    window.deleteLesson = (id) => { if(!confirm('Удалить занятие?')) return; fetch(`/api/director/lessons?id=${id}`, {method:'DELETE'}).then(r=>r.json()).then(res=>{ alert(res.status==='ok'?'Удалено':'Ошибка: '+res.message); loadLessons(); }); };
+});
+
+// --- Загрузчики ---
+function loadDirSchedule() { fetch('/api/schedule').then(r=>r.json()).then(d => document.querySelector('#dir-sched-table tbody').innerHTML = d.map(r=>`<tr><td>${r.date}</td><td>${r.time}</td><td>${r.group_name}</td><td>${r.teacher_name}</td><td>${r.lesson_name}</td></tr>`).join('')); }
+function loadUsersList() { fetch('/api/director/users').then(r=>r.json()).then(d => document.querySelector('#users-list-table tbody').innerHTML = d.map(u => `<tr><td>${u.login}</td><td>${u.full_name||'-'}</td><td>${u.role}</td><td><button onclick="deleteUser(${u.id})" style="background:#ef4444;">Удалить</button></td></tr>`).join('')); }
+function loadGroups() { fetch('/api/director/groups').then(r=>r.json()).then(d => document.querySelector('#groups-table tbody').innerHTML = d.map(g => `<tr><td>${g.id_group}</td><td>${g.group_name}</td><td>${g.teacher_name||'-'}</td><td>${g.lesson_name||'-'}</td></tr>`).join('')); }
+function loadLessons() { fetch('/api/director/lessons').then(r=>r.json()).then(d => document.querySelector('#lessons-table tbody').innerHTML = d.map(l => `<tr><td>${l.id_lesson}</td><td>${l.name}</td><td>${l.price_hour}₽</td><td><button onclick="deleteLesson(${l.id_lesson})" style="background:#ef4444;">Удалить</button></td></tr>`).join('')); }
+function toggleUserFields() { const r=document.getElementById('u-role').value; document.getElementById('teacher-fields').style.display=r==='teacher'?'block':'none'; document.getElementById('student-fields').style.display=r==='student'?'block':'none'; }
+function loadAccounting() { const s=document.getElementById('acc-start').value||'2020-01-01', e=document.getElementById('acc-end').value||'2099-12-31'; fetch(`/api/accounting?start=${s}&end=${e}`).then(r=>r.json()).then(d => { document.getElementById('st-paid').textContent=d.total_paid.toFixed(2); document.getElementById('st-payout').textContent=d.payouts.toFixed(2); document.getElementById('st-profit').textContent=d.profit.toFixed(2); document.querySelector('#acc-table tbody').innerHTML=d.records.map(r=>`<tr><td>${r.date}</td><td>${r.student_name}</td><td>${r.lesson_name}</td><td>${r.payment_amount}₽</td><td>${r.classes_paid}</td><td>${r.classes_left}</td></tr>`).join(''); }); }
+document.getElementById('pay-form')?.addEventListener('submit', e => { e.preventDefault(); fetch('/api/accounting', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(Object.fromEntries(new FormData(e.target)))}).then(r=>r.json()).then(()=>{alert('Внесено'); e.target.reset(); loadAccounting();}); });
+document.getElementById('u-role')?.addEventListener('change', toggleUserFields);
+
+// Заполнение выпадающих списков
+function loadSchedRefs() {
+    fetch('/api/director/groups').then(r=>r.json()).then(g => document.getElementById('sched-group').innerHTML = '<option value="">Группа</option>' + g.map(x=>`<option value="${x.id_group}">${x.group_name}</option>`).join(''));
+    fetch('/api/director/refs').then(r=>r.json()).then(l => document.getElementById('sched-lesson').innerHTML = '<option value="">Предмет</option>' + l.lessons.map(x=>`<option value="${x.id_lesson}">${x.name}</option>`).join(''));
+}
+function loadStudentGroupDropdown() { fetch('/api/director/groups').then(r=>r.json()).then(g => { const s=document.getElementById('u-group-select'); s.innerHTML = g.length ? '<option value="">Выберите группу</option>'+g.map(x=>`<option value="${x.id_group}">${x.group_name}</option>`).join('') : '<option value="">Сначала создайте группу</option>'; s.disabled = !g.length; }); }
+function loadRefs() {
+    const t=document.getElementById('g-teacher'), l=document.getElementById('g-lesson');
+    fetch('/api/director/refs').then(r=>r.json()).then(d => {
+        t.innerHTML='<option>Учитель</option>'+d.teachers.map(x=>`<option value="${x.id_teacher}">${x.name} ${x.surname}</option>`).join('');
+        l.innerHTML='<option>Предмет</option>'+d.lessons.map(x=>`<option value="${x.id_lesson}">${x.name}</option>`).join('');
+    });
+}
+</script>
+{% endblock %}

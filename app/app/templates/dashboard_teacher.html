@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="dashboard">
+    <!--Блок уведомлений -->
+    <div id="notification-banner" style="display:none; background:#fff3cd; border:1px solid #ffecb5; border-radius:6px; padding:12px; margin-bottom:15px;">
+        <h4 style="margin:0 0 8px 0;">Уведомления</h4>
+        <div id="notif-list"></div>
+    </div>
+
+    <div class="tabs">
+        <button class="tab active" data-tab="schedule">Расписание</button>
+        <button class="tab" data-tab="tasks">Задания</button>
+    </div>
+
+    <!-- Расписание -->
+    <div id="schedule" class="panel active">
+        <h3>Моё расписание на неделю</h3>
+        <div id="schedule-container" style="overflow-x:auto;"></div>
+    </div>
+
+    <!-- Задания -->
+    <div id="tasks" class="panel">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <h3 style="margin:0;">Назначенные задания</h3>
+            <button >Назначить задание</button>
+        </div>
+        
+        <div style="display:flex; gap:10px; margin-bottom:15px;">
+            <select id="t-filter-group"><option value="">Все группы</option></select>
+            <select id="t-filter-lesson"><option value="">Все предметы</option></select>
+        </div>
+
+        <table id="teach-tasks-table">
+            <thead><tr><th>Группа</th><th>Предмет</th><th>Название</th><th>Дедлайн</th><th>Макс. балл</th><th>Действие</th></tr></thead>
+            <tbody></tbody>
+        </table>
+
+        <!-- Форма создания задания -->
+        <div id="task-form-panel" style="display:none; background:#f8fafc; padding:15px; border-radius:6px; margin-top:15px; border:1px solid #e2e8f0;">
+            <h4>Новое задание</h4>
+            <form id="create-task-form" style="display:grid; gap:10px; grid-template-columns: 1fr 1fr;">
+                <select name="group_id" id="t-form-group" required><option>Загрузка групп...</option></select>
+                <select name="lesson_id" id="t-form-lesson" required><option>Загрузка предметов...</option></select>
+                <input name="title" placeholder="Название задания" required>
+                <input name="deadline" type="date" required>
+                <input name="max_points" type="number" value="100" placeholder="Макс. баллов">
+                <textarea name="description" placeholder="Описание или условия задания" style="grid-column: span 2;"></textarea>
+                <div style="grid-column: span 2; display:flex; gap:10px;">
+                    <button type="button">Создать</button>
+                    <button type="button" style="background:#64748b;">Отмена</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Панель проверок сдач -->
+    <div id="submissions-panel" class="panel" style="display:none;">
+        <button style="margin-bottom:15px;">← Назад к списку заданий</button>
+        <h3>Сдачи: <span id="sub-task-name" style="color:#2563eb;"></span></h3>
+        <table id="subs-table">
+            <thead><tr><th>Ученик</th><th>Статус</th><th>Текст ответа</th><th>Материалы</th><th>Оценка</th><th>Действие</th></tr></thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// расписание тута
+function loadTeacherSchedule() {
+    fetch('/api/schedule')
+        .then(r => r.json())
+        .then(data => {
+            const days = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
+            let byDay = Array(7).fill(null).map(() => []);
+            
+            data.forEach(item => {
+                const d = new Date(item.date);
+                let idx = d.getDay() - 1; 
+                if (idx === -1) idx = 6;
+                byDay[idx].push(item);
+            });
+
+            let html = '<table style="width:100%; border-collapse:collapse; background:#fff; border-radius:6px; overflow:hidden;">';
+            html += '<tr>' + days.map(d => 
+                `<th style="background:#f1f5f9; padding:12px; border-bottom:2px solid #e2e8f0; text-align:center;">${d}</th>`
+            ).join('') + '</tr><tr>';
+            
+            days.forEach((_, i) => {
+                let lessons = byDay[i].sort((a,b) => a.time.localeCompare(b.time));
+                html += '<td style="padding:10px; border-right:1px solid #e2e8f0; vertical-align:top;">';
+                if (lessons.length) {
+                    html += lessons.map(l => 
+                        `<div style="background:#e0f2fe; padding:8px; margin-bottom:8px; border-radius:4px; font-size:0.9rem; border-left:3px solid #2563eb;">
+                            <b>${l.time}</b><br>${l.group_name}<br>${l.lesson_name}<br>
+                            <span style="font-size:0.75rem; color:${l.is_completed ? '#16a34a' : '#ca8a04'}">
+                                ${l.is_completed ? 'Проведено' : 'Ожидает отметки'}
+                            </span>
+                        </div>`
+                    ).join('');
+                } else {
+                    html += '<span style="color:#94a3b8; font-style:italic;">Нет занятий</span>';
+                }
+                html += '</td>';
+            });
+            html += '</tr></table>';
+            document.getElementById('schedule-container').innerHTML = html;
+        });
+}
+
+// Инициализация при загрузке
+document.addEventListener('DOMContentLoaded', () => {
+    loadTeacherSchedule();
+});
+</script>
+{% endblock %}
