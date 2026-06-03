@@ -1,23 +1,28 @@
 import sqlite3
 import os
+from pathlib import Path
+
+SCHEMA_PATH = Path(__file__).parent / "schema.sql"
 
 # Формируем абсолютный путь к файлу БД в папке проекта
-DB_PATH = os.path.join(os.path.dirname(__file__), "school.db")
+DB_PATH = os.environ.get("DATABASE_PATH", str(Path(__file__).parent.parent.parent.parent / "school.db"))
 
-def get_db():
+def get_db(db_path: str = None):
     """Возвращает настроенное соединение с базой данных для текущего запроса."""
-    conn = sqlite3.connect(DB_PATH)
+    path = db_path or DB_PATH
+    conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row  # Позволяет обращаться к колонкам по имени (row['id'])
     conn.execute("PRAGMA foreign_keys = ON")  # Строгая проверка внешних ключей
     conn.execute("PRAGMA journal_mode = WAL")  # Режим Write-Ahead Log для параллельного доступа
     conn.execute("PRAGMA busy_timeout = 5000")  # Ждёт 5 сек при блокировке таблицы вместо ошибки
     return conn
 
-def init_db():
+def init_db(db_path: str = None):
     """Создаёт все таблицы из SCHEMA_SQL при первом запуске приложения."""
+    path = db_path or DB_PATH
     conn = get_db()
     # Выполняем скрипт создания таблиц (IF NOT EXISTS предотвращает ошибки при повторном запуске)
-    with open(os.path.join(os.path.dirname(__file__), "schema.sql"), "r", encoding="utf-8") as f:
+    with open(SCHEMA_PATH, "r", encoding="utf-8") as f:
         conn.executescript(f.read())
     conn.commit()
     conn.close()
