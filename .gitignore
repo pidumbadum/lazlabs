@@ -3,6 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.so
+*.egg-info/
+dist/
+build/
 
 # Distribution / packaging
 build/
@@ -18,6 +21,18 @@ pip-delete-this-directory.txt
 venv/
 ENV/
 env/
+
+# Environment & IDE
+.env
+.env.local
+.vscode/
+.idea/
+
+# Database & Uploads
+*.db
+*.sqlite
+*.sqlite3
+uploads/
 
 # Testing
 .tox/
@@ -41,3 +56,7 @@ Desktop.ini
 $RECYCLE.BIN/
 *.lnk
 *.stackdump
+
+# OS
+.DS_Store
+Thumbs.db
