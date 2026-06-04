@@ -25,10 +25,12 @@ docker-build: ## Собрать Docker-образ
 	docker build -t lazlabs-school -f app/Dockerfile .
 
 docker-up: ## Запустить в Docker
-	docker compose -f infra/compose.yaml up -d
+	docker compose -f compose.yaml up -d
+	@echo "Откройте http://localhost:5000/ в браузере"
 
 docker-down: ## Остановить Docker
-	docker compose -f infra/compose.yaml down
+	docker compose -f compose.yaml down
+	@echo "Docker контейнер остановлен"
 
 clean: ## Очистить временные файлы
 	find . -type d -name "__pycache__" -exec rm -rf {} +
