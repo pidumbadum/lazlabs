@@ -4,8 +4,6 @@
 import pytest
 import tempfile
 import os
-import time
-import gc
 import sys
 
 # Добавляем путь к пакетам
@@ -13,7 +11,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'packages', 'co
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'app'))
 
 from core import init_db, get_db
+from core.database import SCHEMA_PATH
 from app.main import app as flask_app
+from werkzeug.security import generate_password_hash
 
 
 @pytest.fixture
@@ -45,3 +45,15 @@ def client(temp_db, monkeypatch):
 def db(temp_db):
     """Соединение с временной БД."""
     return get_db(temp_db)
+
+@pytest.fixture
+def login(client, db):
+    """Фикстура: хелпер для входа пользователя."""
+    def _do_login(login_name, pwd="123", role="student", linked_id=0):
+        db.execute(
+            "INSERT INTO users VALUES (NULL, ?, ?, ?, ?)",
+            (login_name, generate_password_hash(pwd), role, linked_id)
+        )
+        db.commit()
+        client.post("/login", data={"login": login_name, "password": pwd}, follow_redirects=True)
+    return _do_login
