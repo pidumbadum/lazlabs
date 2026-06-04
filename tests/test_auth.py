@@ -31,7 +31,7 @@ def test_02_auth_flow(client, db):
 def test_03_dashboard_roles(client, db, login):
     """Проверка доступа к дашбордам для разных ролей."""
     for role in ["director", "teacher", "student"]:
-        _login(client, db, f"u_{role}", role=role, linked_id=1 if role != "director" else 0)
+        login(f"u_{role}", role=role, linked_id=1 if role != "director" else 0)
         resp = client.get("/dashboard")
         assert resp.status_code == 200, f"Дашборд для {role} должен отдавать 200"
         client.get("/logout")  # Очищаем сессию перед следующей итерацией

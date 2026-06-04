@@ -14,7 +14,7 @@ def test_05_tasks_and_grades(client, db, login):
     db.commit()
 
     # 1. Студент сдаёт работу
-    _login(client, db, "s2", role="student", linked_id=200)
+    login("s2", role="student", linked_id=200)
     assert client.post("/api/submit/200", data={"text": "ans"}).get_json()["status"] == "ok"
     client.get("/logout")
 
