@@ -4,8 +4,6 @@
 import pytest
 import tempfile
 import os
-import time
-import gc
 import sys
 
 # Добавляем путь к пакетам
@@ -13,6 +11,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'packages', 'co
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'app'))
 
 from core import init_db, get_db
+from core.database import SCHEMA_PATH
 from app.main import app as flask_app
 
 
@@ -45,3 +44,11 @@ def client(temp_db, monkeypatch):
 def db(temp_db):
     """Соединение с временной БД."""
     return get_db(temp_db)
+
+def _login(client, db, login, pwd="123", role="student", linked_id=0):
+    """Хелпер: создаёт юзера и логинит его."""
+    # NULL позволяет SQLite автоматически назначать уникальный id
+    db.execute("INSERT INTO users VALUES (NULL, ?, ?, ?, ?)",
+               (login, generate_password_hash(pwd), role, linked_id))
+    db.commit()
+    client.post("/login", data={"login": login, "password": pwd}, follow_redirects=True)
