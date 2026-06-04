@@ -2,6 +2,7 @@ import sqlite3
 import os
 from pathlib import Path
 
+
 # Путь к схеме БД — всегда рядом с этим файлом
 SCHEMA_PATH = Path(__file__).resolve().parent / "schema.sql"
 
@@ -39,3 +40,4 @@ def init_db(db_path: str = None):
         conn.executescript(f.read())
     conn.commit()
     conn.close()
+
