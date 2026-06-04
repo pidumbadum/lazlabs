@@ -33,6 +33,4 @@ docker-down: ## Остановить Docker
 	@echo "Docker контейнер остановлен"
 
 clean: ## Очистить временные файлы
-	find . -type d -name "__pycache__" -exec rm -rf {} +
-	find . -type d -name ".pytest_cache" -exec rm -rf {} +
-	rm -rf .coverage htmlcov/
+	python -c "import shutil, os; [shutil.rmtree(os.path.join(r, d)) for r, dirs, _ in os.walk('.') for d in dirs if d in ('__pycache__', '.pytest_cache')]; [os.remove(f) for f in ('.coverage',) if os.path.isfile(f)]; [shutil.rmtree(f) for f in ('htmlcov',) if os.path.isdir(f)]"
