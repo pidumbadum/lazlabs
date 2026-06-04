@@ -16,6 +16,7 @@ DB_PATH = os.environ.get(
 def get_db(db_path: str = None):
     """Возвращает настроенное соединение с базой данных для текущего запроса."""
     path = db_path or DB_PATH
+    Path(path).parent.mkdir(parents=True, exist_ok=True) #необходимо для того, чтобы папка с бд точно существовала
     conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row  # Позволяет обращаться к колонкам по имени (row['id'])
     conn.execute("PRAGMA foreign_keys = ON")  # Строгая проверка внешних ключей
@@ -35,7 +36,7 @@ def init_db(db_path: str = None):
             f"Текущая директория: {os.getcwd()}"
         )
 
-    conn = get_db(path)  # ← ИСПРАВЛЕНО: передаём path вместо get_db() без аргументов
+    conn = get_db(path)
     with open(SCHEMA_PATH, "r", encoding="utf-8") as f:
         conn.executescript(f.read())
     conn.commit()
