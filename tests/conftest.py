@@ -44,7 +44,9 @@ def client(temp_db, monkeypatch):
 @pytest.fixture
 def db(temp_db):
     """Соединение с временной БД."""
-    return get_db(temp_db)
+    conn = get_db(temp_db)
+    yield conn
+    conn.close()
 
 @pytest.fixture
 def login(client, db):
