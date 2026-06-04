@@ -7,7 +7,8 @@ from core import get_db, init_db
 from functools import wraps
 
 app = Flask(__name__)
-app.secret_key = os.urandom(24)  # Ключ для шифрования сессий
+# Берем ключ из переменных окружения (Docker) или генерируем новый (для локальной разработки без Docker)
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", os.urandom(24).hex())
 
 # Настройка папки для загрузки файлов (ответы на задания)
 UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), "uploads")

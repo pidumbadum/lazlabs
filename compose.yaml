@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+    container_name: lazlabs-school-app
+    ports:
+      - "5000:5000"
+    environment:
+      - DATABASE_PATH=/app/data/school.db
+      - FLASK_SECRET_KEY=${FLASK_SECRET_KEY:-super-secret-dev-key}
+    volumes:
+      # Сохраняем БД между перезапусками контейнера
+      - db-data:/app/data
+      # Сохраняем загруженные файлы студентов
+      - uploads-data:/app/app/uploads
+    restart: unless-stopped
+
+volumes:
+  db-data: # Создает именованный том для базы данных
+  uploads-data: # Создает именованный том для файлов
