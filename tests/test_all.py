@@ -1,55 +1,15 @@
-import sys
-import os
-import tempfile
-import sqlite3
-import time
+"""
+Интеграционные тесты Lazlabs School.
+Адаптировано под pytest с фикстурами из conftest.py
+"""
+import pytest
 import datetime
 from werkzeug.security import generate_password_hash
-
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from app import app
-import database
+from core import get_db  # импорт для test_01
 
 
-def _setup():
-    """Настраивает тестовое окружение с временной БД."""
-    app.config.update(TESTING=True, SECRET_KEY="test_key", UPLOAD_FOLDER=tempfile.mkdtemp())
-    database.DB_PATH = tempfile.mktemp(suffix=".db")
-
-    schema_path = os.path.join(os.path.dirname(database.__file__), "schema.sql")
-    with open(schema_path, "w", encoding="utf-8") as f:
-        f.write(database.SCHEMA_SQL)
-
-    database.init_db()
-    return database.DB_PATH
-
-
-def _teardown(db_path):
-    """Корректно закрывает БД и удаляет файлы (важно для Windows)."""
-    import gc
-    gc.collect()
-    time.sleep(0.1)  # Даём ОС время освободить хендл файла
-
-    for path in [db_path, db_path + "-wal", db_path + "-shm"]:
-        if os.path.exists(path):
-            try:
-                os.remove(path)
-            except PermissionError:
-                time.sleep(0.3)
-                try:
-                    os.remove(path)
-                except:
-                    pass
-
-    schema_path = os.path.join(os.path.dirname(database.__file__), "schema.sql")
-    if os.path.exists(schema_path):
-        os.remove(schema_path)
-
-
-def _login(client, login, pwd="123", role="student", linked_id=0):
-    """Универсальный хелпер: создаёт юзера в БД и логинит его через тестовый клиент."""
-    db = database.get_db()
+def _login(client, db, login, pwd="123", role="student", linked_id=0):
+    """Хелпер: создаёт юзера и логинит его."""
     # NULL позволяет SQLite автоматически назначать уникальный id
     db.execute("INSERT INTO users VALUES (NULL, ?, ?, ?, ?)",
                (login, generate_password_hash(pwd), role, linked_id))
@@ -57,9 +17,10 @@ def _login(client, login, pwd="123", role="student", linked_id=0):
     client.post("/login", data={"login": login, "password": pwd}, follow_redirects=True)
 
 
-def test_01_db_init():
-    db_path = _setup()
-    db = database.get_db()
+# ========== Инициализация БД ==========
+def test_01_db_init(temp_db):
+    """Проверка создания всех таблиц."""
+    db = get_db(temp_db)
     tables = [r["name"] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]
     expected = ["users", "teachers", "students", "lessons", "study_groups", "schedule", "tasks", "task_submissions",
                 "accounting"]
@@ -67,18 +28,14 @@ def test_01_db_init():
     missing = [t for t in expected if t not in tables]
     assert not missing, f"Не созданы таблицы: {missing}"
 
-    print("DB Init Success")
-    _teardown(db_path)
 
-
-def test_02_auth_flow():
-    db_path = _setup()
-    client = app.test_client()
-
-    db = database.get_db()
+# ========== Аутентификация ==========
+def test_02_auth_flow(client, db):
+    """Тест входа и выхода из системы."""
     db.execute("INSERT INTO users VALUES (NULL, 'user', ?, 'student', 0)", (generate_password_hash("123"),))
     db.commit()
 
+    # Проверяем пустую сессию
     with client.session_transaction() as sess:
         assert "user_id" not in sess, "Сессия должна быть пуста до входа"
 
@@ -96,34 +53,27 @@ def test_02_auth_flow():
     with client.session_transaction() as sess:
         assert "user_id" not in sess, "После выхода сессия должна очиститься"
 
-    print("Auth Flow Success")
-    _teardown(db_path)
 
-
-def test_03_dashboard_roles():
-    db_path = _setup()
-    client = app.test_client()
-
+def test_03_dashboard_roles(client, db):
+    """Проверка доступа к дашбордам для разных ролей."""
     for role in ["director", "teacher", "student"]:
-        _login(client, f"u_{role}", role=role, linked_id=1 if role != "director" else 0)
+        _login(client, db, f"u_{role}", role=role, linked_id=1 if role != "director" else 0)
         resp = client.get("/dashboard")
         assert resp.status_code == 200, f"Дашборд для {role} должен отдавать 200"
         client.get("/logout")  # Очищаем сессию перед следующей итерацией
 
     print("Dashboard Roles Success")
-    _teardown(db_path)
 
 
-def test_04_schedule_api():
-    db_path = _setup()
-
-    # 🔧 ВАЖНО: Эндпоинт /api/schedule показывает только текущую неделю.
+# ========== API расписания ==========
+def test_04_schedule_api(client, db):
+    """Тест получения расписания и отметки о проведении."""
     # Генерируем дату понедельника текущей недели, чтобы тест не падал из-за фильтрации.
     today = datetime.date.today()
     monday = today - datetime.timedelta(days=today.weekday())
     test_date = str(monday)
 
-    db = database.get_db()
+    # Используем фикстуру db (вместо database.get_db())
     db.execute("INSERT INTO teachers VALUES (NULL, 'I', 'P', 30)")
     db.execute("INSERT INTO lessons VALUES (NULL, 'Math', 1000)")
     db.execute("INSERT INTO study_groups VALUES (NULL, 1, 1, 'G1')")
@@ -131,7 +81,6 @@ def test_04_schedule_api():
     db.execute("INSERT INTO users VALUES (NULL, 't1', ?, 'teacher', 1)", (generate_password_hash("123"),))
     db.commit()
 
-    client = app.test_client()
     client.post("/login", data={"login": "t1", "password": "123"}, follow_redirects=True)
 
     # 1. GET /api/schedule
@@ -149,14 +98,9 @@ def test_04_schedule_api():
         "is_completed"]
     assert is_completed == 1, "Занятие должно быть отмечено как проведённое (is_completed=1)"
 
-    print("Schedule API Success")
-    _teardown(db_path)
 
-
-def test_05_tasks_and_grades():
-    db_path = _setup()
-    db = database.get_db()
-
+# ========== Задания и оценки ==========
+def test_05_tasks_and_grades(client, db):
     # Подготовка данных
     db.execute("INSERT INTO teachers VALUES (20, 'T', 'T', 40)")
     db.execute("INSERT INTO lessons VALUES (2, 'Phys', 1500)")
@@ -165,10 +109,8 @@ def test_05_tasks_and_grades():
     db.execute("INSERT INTO tasks VALUES (200, 2, 20, 2, 'HW1', 'desc', '2024-06-01', 'active', 100)")
     db.commit()
 
-    client = app.test_client()
-
     # 1. Студент сдаёт работу
-    _login(client, "s2", role="student", linked_id=200)
+    _login(client, db, "s2", role="student", linked_id=200)
     assert client.post("/api/submit/200", data={"text": "ans"}).get_json()["status"] == "ok"
     client.get("/logout")
 
@@ -181,14 +123,9 @@ def test_05_tasks_and_grades():
     # 3. Проверяем, что оценка записалась в БД
     assert db.execute("SELECT grade FROM task_submissions WHERE id_task=200").fetchone()["grade"] == 85
 
-    print("Tasks & Grades Success")
-    _teardown(db_path)
 
-
-def test_06_director_users():
-    db_path = _setup()
-    db = database.get_db()
-
+# ========== Пользователи директора ==========
+def test_06_director_users(client, db):
     # Подготавливаем данные для соблюдения FK-ограничений при создании студента
     db.execute("INSERT INTO teachers VALUES (NULL, 'T', 'T', 30)")
     db.execute("INSERT INTO lessons VALUES (NULL, 'Math', 1000)")
@@ -196,7 +133,6 @@ def test_06_director_users():
     db.execute("INSERT INTO users VALUES (NULL, 'dir', ?, 'director', 0)", (generate_password_hash("123"),))
     db.commit()
 
-    client = app.test_client()
     client.post("/login", data={"login": "dir", "password": "123"}, follow_redirects=True)
 
     # 1. Создание студента
@@ -219,14 +155,9 @@ def test_06_director_users():
     director_id = db.execute("SELECT id FROM users WHERE login='dir'").fetchone()["id"]
     assert client.delete(f"/api/director/users/{director_id}").status_code == 403
 
-    print("Director Users CRUD Success")
-    _teardown(db_path)
 
-
-def test_07_refs_schedule():
-    db_path = _setup()
-    db = database.get_db()
-
+# ========== Справочники и расписание ==========
+def test_07_refs_schedule(client, db):
     # Подготовка данных
     db.execute("INSERT INTO teachers VALUES (1, 'T1', 'N1', 30)")
     db.execute("INSERT INTO lessons VALUES (1, 'Math', 1000)")
@@ -234,7 +165,6 @@ def test_07_refs_schedule():
     db.execute("INSERT INTO users VALUES (100, 'dir', ?, 'director', 0)", (generate_password_hash("123"),))
     db.commit()
 
-    client = app.test_client()
     client.post("/login", data={"login": "dir", "password": "123"}, follow_redirects=True)
 
     # 1. Проверка справочников (refs)
@@ -262,13 +192,9 @@ def test_07_refs_schedule():
     })
     assert r_time.status_code == 400 and "08:00 до 18:00" in r_time.get_json()["message"]
 
-    print("Refs & Schedule Success")
-    _teardown(db_path)
 
-
-def test_08_teacher_tasks():
-    db_path = _setup()
-    db = database.get_db()
+# ========== Задания учителя ==========
+def test_08_teacher_tasks(client, db):
     # Подготовка данных (учитель, предмет, группа)
     db.execute("INSERT INTO teachers VALUES (30, 'Teach', 'A', 50)")
     db.execute("INSERT INTO lessons VALUES (3, 'Eng', 1200)")
@@ -276,7 +202,6 @@ def test_08_teacher_tasks():
     db.execute("INSERT INTO users VALUES (30, 't3', ?, 'teacher', 30)", (generate_password_hash("123"),))
     db.commit()
 
-    client = app.test_client()
     client.post("/login", data={"login": "t3", "password": "123"}, follow_redirects=True)
 
     # 1. Создание задания
@@ -288,13 +213,9 @@ def test_08_teacher_tasks():
     tasks = client.get("/api/teacher/tasks").get_json()
     assert len(tasks) == 1 and tasks[0]["title"] == "HW2"
 
-    print("Teacher Tasks API Success")
 
-
-def test_09_acc_notifs():
-    db_path = _setup()
-    db = database.get_db()
-
+# ========== Бухгалтерия и уведомления ==========
+def test_09_acc_notifs(client, db):
     # Подготовка данных
     db.execute("INSERT INTO teachers VALUES (40, 'T40', 'X', 40)")
     db.execute("INSERT INTO lessons VALUES (4, 'Hist', 2000)")
@@ -305,8 +226,6 @@ def test_09_acc_notifs():
     # Занятие в прошлом (2020), чтобы попасть в "пропущенные"
     db.execute("INSERT INTO schedule VALUES (400, 4, 40, '2020-01-01', '09:00', 0)")
     db.commit()
-
-    client = app.test_client()
 
     # 1. Директор вносит оплату
     client.post("/login", data={"login": "dir40", "password": "123"}, follow_redirects=True)
@@ -322,43 +241,26 @@ def test_09_acc_notifs():
     notifs = client.get("/api/notifications").get_json()
     assert len(notifs["lessons"]) == 1 and notifs["lessons"][0]["id_schedule"] == 400
 
-    print(" Accounting & Notifications Success")
-    _teardown(db_path)
 
-
-def test_10_add_director_logic():
-    db_path = _setup()
-    conn = sqlite3.connect(db_path)
+# ========== Логика добавления директора ==========
+def test_10_add_director_logic(client, db):
     pwd_hash = generate_password_hash("admin123")
 
     # Первая вставка
-    conn.execute("""INSERT OR IGNORE INTO users (login, password_hash, role, linked_entity_id)
+    db.execute("""INSERT OR IGNORE INTO users (login, password_hash, role, linked_entity_id)
         VALUES ('director', ?, 'director', 0)""", (pwd_hash,))
-    conn.commit()
+    db.commit()
 
-    row = conn.execute("SELECT login, role FROM users WHERE login='director'").fetchone()
+    row = db.execute("SELECT login, role FROM users WHERE login='director'").fetchone()
     assert row is not None and row["login"] == "director"
 
     # Повторная вставка (должна игнорироваться)
-    conn.execute("""INSERT OR IGNORE INTO users (login, password_hash, role, linked_entity_id)
+    db.execute("""INSERT OR IGNORE INTO users (login, password_hash, role, linked_entity_id)
         VALUES ('director', ?, 'director', 0)""", (pwd_hash,))
-    conn.commit()
+    db.commit()
 
-    assert conn.execute("SELECT COUNT(*) FROM users WHERE login='director'").fetchone()[0] == 1
-    conn.close()
+    assert db.execute("SELECT COUNT(*) FROM users WHERE login='director'").fetchone()[0] == 1
 
-    _teardown(db_path)
-    print("Add Director Logic Success")
 
 if __name__ == "__main__":
-    test_01_db_init()
-    test_02_auth_flow()
-    test_03_dashboard_roles()
-    test_04_schedule_api()
-    test_05_tasks_and_grades()
-    test_06_director_users()
-    test_07_refs_schedule()
-    test_08_teacher_tasks()
-    test_09_acc_notifs()
-    test_10_add_director_logic()
-    print("Тесты 1-10 пройдены успешно!")
+    pytest.main(["-v", __file__])
