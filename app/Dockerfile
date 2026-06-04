@@ -18,7 +18,7 @@ COPY requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt
 
 #Копируем код приложения и скрипты
-COPY app /app/app
+COPY app/app /app/app
 COPY scripts /app/scripts
 
 #Создаем папку для БД и даем права на запись (важно для SQLite)
