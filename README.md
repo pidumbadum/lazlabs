@@ -20,7 +20,9 @@ Lazlabs — это веб-приложение на базе Flask для упр
     git clone https://github.com/pidumbadum/lazlabs.git
     cd lazlabs-school
 После копирования репозитория перейдите в Git Bash или терминал MacOS или Linux. Терминал Windows и PowerShell не поддерживают команды make 
-    `make docker-up`
+    `
+    make docker-up
+    `
 
 После запуска откройте в браузере адрес http://localhost:5000.
 
