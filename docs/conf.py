@@ -45,7 +45,6 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 #настройки для HTML
 html_theme = 'sphinx_rtd_theme'  # Тема Read the Docs
-html_static_path = ['../static']
 html_logo = None
 html_favicon = None 
 

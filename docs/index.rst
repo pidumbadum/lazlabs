@@ -9,6 +9,8 @@ Lazlabs School — это комплексное решение для авто�
     :caption: Содержание:
 
     spec
+    architecture
+    user-guide
 
 Быстрый старт
 -------------
@@ -47,7 +49,7 @@ Lazlabs School — это комплексное решение для авто�
 
     # Остановить docker 
     make docker-down
-
+    
 Тестирование
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
