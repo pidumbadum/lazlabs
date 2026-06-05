@@ -18,8 +18,20 @@ coverage: ## Отчёт о покрытии
 run: ## Запустить приложение
 	cd app && python app/main.py
 
-docs: ## Собрать документацию
-	@echo "Документация в docs/"
+docs: ## собрать документацию
+	@echo "Сборка документации..."
+	cd docs && sphinx-build -b html . _build/html
+	@echo "Документация собрана в docs/_build/html"
+	@echo "Откройте docs/_build/html/index.html в браузере"
+
+docs-serve: ## Запустить документацию локально (автообновление)
+	cd docs && sphinx-autobuild . _build/html --host 0.0.0.0 --port 8000
+	@echo "Документация доступна по адресу: http://localhost:8000"
+
+docs-clean: ## Очистить собранную документацию
+	@echo "Очистка документации..."
+	rm -rf docs/_build
+	@echo "Документация очищена"
 
 docker-build: ## Собрать Docker-образ
 	docker build -t lazlabs-school -f app/Dockerfile .
