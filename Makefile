@@ -10,7 +10,7 @@ setup: ## Установить зависимости
 	pip install -r requirements-dev.txt
 
 test: ## Запустить тесты
-	pytest tests/ packages/core/tests/ -v
+	pytest tests/
 
 coverage: ## Отчёт о покрытии
 	pytest --cov=packages/core --cov=app --cov-report=term-missing
